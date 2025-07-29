@@ -21,9 +21,16 @@ public class UserInfoProducer {
     private String topicJsonName;
 
 
-    public void sendEventToKafka(UserInfoDto eventData) {
-        Message<UserInfoDto> message = MessageBuilder.withPayload(eventData)
+    public void sendEventToKafka(UserInfoEvent eventData) {
+        Message<UserInfoEvent> message = MessageBuilder.withPayload(eventData)
                 .setHeader(KafkaHeaders.TOPIC, topicJsonName).build();
+        System.out.println("📤 Sending to Kafka:");
+        System.out.println("👤 UserID: " + eventData.getUserId());
+        System.out.println("👨‍🦰 FirstName: " + eventData.getFirstName());
+        System.out.println("🧑‍🦰 LastName: " + eventData.getLastName());
+        System.out.println("📞 Phone: " + eventData.getPhoneNumber());
+        System.out.println("📧 Email: " + eventData.getEmail());
+
         kafkaTemplate.send(message);
     }
 }
