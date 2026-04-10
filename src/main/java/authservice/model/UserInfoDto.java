@@ -1,30 +1,23 @@
 package authservice.model;
 
-import authservice.entities.UserInfo;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
-@Data
+// SIRF yeh rakho — koi @JsonNaming, koi @JsonProperty nahi
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class UserInfoDto  {
-
+public class UserInfoDto {
 
     private String username;
     private String password;
 
-    @JsonProperty("first_name")
+    // Profile fields jo Kafka pe jayenge
+    private String userId;
     private String firstName;
-
-    @JsonProperty("last_name")
     private String lastName;
-
-    @JsonProperty("phone_number")
     private Long phoneNumber;
-
     private String email;
-
-
-
+    private String profilePic;
 }

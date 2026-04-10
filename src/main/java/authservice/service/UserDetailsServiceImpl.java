@@ -1,43 +1,40 @@
 package authservice.service;
 
 import authservice.entities.UserInfo;
-
 import authservice.eventProducer.UserInfoEvent;
 import authservice.eventProducer.UserInfoProducer;
 import authservice.model.UserInfoDto;
 import authservice.repository.UserRepository;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.slf4j.Logger;
+
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
-
 
 @Component
 @AllArgsConstructor
 @Data
-
-public class UserDetailsServiceImpl implements UserDetailsService {
-
-
+public class UserDetailsServiceImpl implements UserDetailsService
+{
 
     @Autowired
-    private  UserRepository userRepository;
+    private final UserRepository userRepository;
 
     @Autowired
-    private  PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    private UserInfoProducer userInfoProducer;
+    private final UserInfoProducer userInfoProducer;
 
 
     private static final Logger log = LoggerFactory.getLogger(UserDetailsServiceImpl.class);
@@ -53,41 +50,30 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             throw new UsernameNotFoundException("could not found user..!!");
         }
         log.info("User Authenticated Successfully..!!!");
-        return new CustomUserDetails(user);  // iski jaga builder bhi use ho sakta tha journal entry ki jaise or customuserdetails ke through hi kyu use huaa or uska use kya hai
+        return new CustomUserDetails(user);
     }
 
     public UserInfo checkIfUserAlreadyExist(UserInfoDto userInfoDto){
         return userRepository.findByUsername(userInfoDto.getUsername());
     }
 
-    public Boolean signupUser(UserInfoDto userInfoDto){
+    public String signupUser(UserInfoDto userInfoDto){
+        //        ValidationUtil.validateUserAttributes(userInfoDto);
+        userInfoDto.setPassword(passwordEncoder.encode(userInfoDto.getPassword()));
         if(Objects.nonNull(checkIfUserAlreadyExist(userInfoDto))){
-            return false;
+            return null;
         }
-
         String userId = UUID.randomUUID().toString();
-
-        UserInfo userInfo = new UserInfo();
-        userInfo.setUserId(userId);
-        userInfo.setUsername(userInfoDto.getUsername());
-        userInfo.setPassword(passwordEncoder.encode(userInfoDto.getPassword()));
-        userInfo.setRoles(new HashSet<>()); // Optional for now
-
+        UserInfo userInfo = new UserInfo(userId, userInfoDto.getUsername(), userInfoDto.getPassword(), new HashSet<>());
         userRepository.save(userInfo);
-
-        userInfoProducer.sendEventToKafka(
-                UserInfoEvent.builder()
-                        .userId(userId)
-                        .firstName(userInfoDto.getFirstName())
-                        .lastName(userInfoDto.getLastName())
-                        .email(userInfoDto.getEmail())
-                        .phoneNumber(userInfoDto.getPhoneNumber())
-                        .build()
-        );
-
-        return true;
+        // pushEventToQueue
+        userInfoProducer.sendEventToKafka(userInfoEventToPublish(userInfoDto, userId));
+        return userId;
     }
 
+    public String getUserByUsername(String userName){
+        return Optional.of(userRepository.findByUsername(userName)).map(UserInfo::getUserId).orElse(null);
+    }
 
     private UserInfoEvent userInfoEventToPublish(UserInfoDto userInfoDto, String userId){
         return UserInfoEvent.builder()
@@ -98,6 +84,4 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 .phoneNumber(userInfoDto.getPhoneNumber()).build();
 
     }
-
-
 }
